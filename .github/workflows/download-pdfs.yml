@@ -1,114 +1,84 @@
-+   1 name: Download LA PDFs
-+   2 
-+   3 on:
-+   4   schedule:
-+   5     - cron: '0 3-21 * * *'
-+   6   workflow_dispatch:
-+   7 
-+   8 jobs:
-+   9   download:
-+  10     runs-on: ubuntu-latest
-+  11 
-+  12     steps:
-+  13       - name: Checkout repo
-+  14         uses: actions/checkout@v4
-+  15 
-+  16       - name: Create pdfs directory
-+  17         run: mkdir -p pdfs
-+  18 
-+  19       - name: Clear old PDFs
-+  20         run: rm -rf pdfs/*.pdf
-+  21 
-+  22       - name: Get dates
-+  23         id: dates
-+  24         run: |
-+  25           export TZ="Europe/Copenhagen"
-+  26           echo "today=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
-+  27           echo "tomorrow=$(date -d '+1 day' +%Y-%m-%d)" >> $GITHUB_OUTPUT
-+  28 
-+  29       - name: Download PDFs
-+  30         run: |
-+  31           BASE_URL="https://www.bane.dk/temp/FileFetch/RouteInformationFolder/La"
-+  32           TODAY="${{ steps.dates.outputs.today }}"
-+  33           TOMORROW="${{ steps.dates.outputs.tomorrow }}"
-+  34           ROUTES="10 11"
-+  35           
-+  36           download_pdf() {
-+  37             local filename=$1
-+  38             local url="${BASE_URL}/${filename}"
-+  39             local output="pdfs/${filename}"
-+  40             
-+  41             if curl -f -s -o "$output" "$url" 2>/dev/null; then
-+  42               if head -c 4 "$output" | grep -q '%PDF'; then
-+  43                 echo "✓ $filename"
-+  44                 return 0
-+  45               fi
-+  46             fi
-+  47             
-+  48             rm -f "$output"
-+  49             return 1
-+  50           }
-+  51           
-+  52           for ROUTE in $ROUTES; do
-+  53             download_pdf "La-${ROUTE}-${TODAY}-${TODAY}.pdf" || echo "✗ La-${ROUTE}-${TODAY}-${TODAY}.pdf"
-+  54             download_pdf "La-${ROUTE}-${TOMORROW}-${TOMORROW}.pdf" || echo "✗ La-${ROUTE}-${TOMORROW}-${TOMORROW}.pdf"
-+  55             
-+  56             missing=0
-+  57             for R in $(seq 1 20); do
-+  58               if download_pdf "La-${ROUTE}-${TODAY}-${TODAY}-R${R}.pdf"; then
-+  59                 missing=0
-+  60               else
-+  61                 missing=$((missing + 1))
-+  62                 if [ $missing -ge 3 ]; then
-+  63                   break
-+  64                 fi
-+  65               fi
-+  66             done
-+  67             
-+  68             missing=0
-+  69             for R in $(seq 1 20); do
-+  70               if download_pdf "La-${ROUTE}-${TOMORROW}-${TOMORROW}-R${R}.pdf"; then
-+  71                 missing=0
-+  72               else
-+  73                 missing=$((missing + 1))
-+  74                 if [ $missing -ge 3 ]; then
-+  75                   break
-+  76                 fi
-+  77               fi
-+  78             done
-+  79           done
-+  80           
-+  81           echo ""
-+  82           echo "=== Nedladdade filer ==="
-+  83           ls -la pdfs/
-+  84 
-+  85       - name: Create index.json
-+  86         run: |
-+  87           cd pdfs
-+  88           ls -1 *.pdf 2>/dev/null | jq -R -s 'split("\n") | map(select(length > 0))' > index.json || echo "[]" > index.json
-+  89           echo "=== index.json ==="
-+  90           cat index.json
-+  91 
-+  92       - name: Copy app files to pdfs
-+  93         run: |
-+  94           cp index.html pdfs/ || echo "index.html not found"
-+  95           cp sw.js pdfs/ || echo "sw.js not found"
-+  96 
-+  97       - name: Upload to GitHub Pages
-+  98         uses: actions/upload-pages-artifact@v3
-+  99         with:
-+ 100           path: pdfs/
-+ 101 
-+ 102   deploy:
-+ 103     needs: download
-+ 104     runs-on: ubuntu-latest
-+ 105     permissions:
-+ 106       pages: write
-+ 107       id-token: write
-+ 108     environment:
-+ 109       name: github-pages
-+ 110       url: ${{ steps.deployment.outputs.page_url }}
-+ 111     steps:
-+ 112       - name: Deploy to GitHub Pages
-+ 113         id: deployment
-+ 114         uses: actions/deploy-pages@v4
+name: Download LA PDFs
+
+on:
+  schedule:
+    - cron: '0 3-21 * * *'
+  workflow_dispatch:
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Create pdfs directory
+        run: mkdir -p pdfs
+
+      - name: Clear old PDFs
+        run: rm -rf pdfs/*.pdf
+
+      - name: Get dates
+        id: dates
+        run: |
+          export TZ="Europe/Copenhagen"
+          echo "today=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+          echo "tomorrow=$(date -d '+1 day' +%Y-%m-%d)" >> $GITHUB_OUTPUT
+
+      - name: Download PDFs
+        run: |
+          BASE_URL="https://www.bane.dk/temp/FileFetch/RouteInformationFolder/La"
+          TODAY="${{ steps.dates.outputs.today }}"
+          TOMORROW="${{ steps.dates.outputs.tomorrow }}"
+          ROUTES="10 11"
+          download_pdf() {
+            local filename=$1
+            local url="${BASE_URL}/${filename}"
+            local output="pdfs/${filename}"
+            if curl -f -s -o "$output" "$url" 2>/dev/null; then
+              if head -c 4 "$output" | grep -q '%PDF'; then
+                echo "Downloaded $filename"
+                return 0
+              fi
+            fi
+            rm -f "$output"
+            return 1
+          }
+          for ROUTE in $ROUTES; do
+            download_pdf "La-${ROUTE}-${TODAY}-${TODAY}.pdf" || true
+            download_pdf "La-${ROUTE}-${TOMORROW}-${TOMORROW}.pdf" || true
+            for R in $(seq 1 10); do
+              download_pdf "La-${ROUTE}-${TODAY}-${TODAY}-R${R}.pdf" || true
+              download_pdf "La-${ROUTE}-${TOMORROW}-${TOMORROW}-R${R}.pdf" || true
+            done
+          done
+          ls -la pdfs/
+
+      - name: Create index.json
+        run: |
+          cd pdfs
+          ls -1 *.pdf 2>/dev/null | jq -R -s 'split("\n") | map(select(length > 0))' > index.json || echo "[]" > index.json
+
+      - name: Copy app files
+        run: |
+          cp index.html pdfs/ || true
+          cp sw.js pdfs/ || true
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pdfs/
+
+  deploy:
+    needs: download
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
