@@ -1244,6 +1244,7 @@
             border-radius: 6px;
             font-family: 'JetBrains Mono', monospace;
             animation: pulse-glow 2s infinite;
+            cursor: pointer;
         }
 
         .countdown-container.hidden {
@@ -1396,7 +1397,7 @@
     <div class="timetable-overlay" id="timetableOverlay">
         <div class="timetable-header">
             <div class="timetable-train" id="timetableTrain">Tog</div>
-            <div class="countdown-container hidden" id="countdownContainer">
+            <div class="countdown-container hidden" id="countdownContainer" onclick="hideCountdown()" title="Klicka för att dölja">
                 <span class="countdown-label">Østerport</span>
                 <span class="countdown-time" id="countdownTime">--:--</span>
             </div>
@@ -2457,6 +2458,11 @@
                 countdownContainer.classList.add('hidden');
                 countdownContainer.classList.remove('urgent');
             }
+        }
+
+        function hideCountdown() {
+            stopCountdown();
+            activeOsterportDeparture = null; // Prevent it from restarting
         }
 
         // ========================================
