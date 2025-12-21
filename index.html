@@ -1,7 +1,9 @@
-<!DOCTYPE html><html lang="da"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+<!DOCTYPE html>
+<html lang="da">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DKapp - LA &amp; Tognummer</title>
+    <title>DKapp - LA & Tognummer</title>
 
     <!-- PWA / Standalone App Support -->
     <meta name="mobile-web-app-capable" content="yes">
@@ -12,7 +14,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icon.png">
     <link rel="apple-touch-icon" href="icon.png">
     <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22DKapp%20-%20LA%20%26%20Tognummer%22%2C%22short_name%22%3A%22DKapp%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23c41e3a%22%2C%22theme_color%22%3A%22%23c41e3a%22%2C%22orientation%22%3A%22portrait%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22icon.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22icon.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         :root {
@@ -1434,7 +1436,7 @@
         <div class="password-box">
             <h2>DKapp</h2>
             <p>Ange lösenord för att fortsätta</p>
-            <input type="password" id="passwordInput" class="password-input" placeholder="Lösenord" autofocus="">
+            <input type="password" id="passwordInput" class="password-input" placeholder="Lösenord" autofocus>
             <button class="password-btn" onclick="checkPassword()">Öppna</button>
             <div class="password-error hidden" id="passwordError">Fel lösenord</div>
         </div>
@@ -1446,10 +1448,10 @@
         <div class="header-right">
             <div class="sync-status" id="syncStatus">Kontrollerar...</div>
             <button class="fullscreen-btn" onclick="toggleFullscreen()" title="Fullskärm" id="fullscreenBtn">
-                <svg viewBox="0 0 24 24" id="fullscreenIcon"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"></path></svg>
+                <svg viewBox="0 0 24 24" id="fullscreenIcon"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
             </button>
             <button class="refresh-btn" onclick="refreshLaDisplay()" title="Uppdatera">
-                <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"></path></svg>
+                <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
             </button>
             <span class="version-label">v0.3</span>
         </div>
@@ -1490,9 +1492,9 @@
             <div class="search-section">
                 <div class="search-wrapper">
                     <span class="search-icon">🔎</span>
-                    <input type="text" class="search-input" id="searchInput" placeholder="Hämtar körplan..." disabled="">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Hämtar körplan..." disabled>
                 </div>
-                <button class="search-btn" id="searchBtn" disabled="">Sök</button>
+                <button class="search-btn" id="searchBtn" disabled>Sök</button>
             </div>
 
             <div id="savedTrainsContainer" class="saved-trains-container hidden">
@@ -1526,13 +1528,13 @@
             </div>
             <div class="pdf-actions">
                 <button class="pdf-action-btn" onclick="togglePdfExpand()" title="Förstora/Förminska" id="pdfExpandBtn">
-                    <svg viewBox="0 0 24 24" id="pdfExpandIcon"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zm.5-7H9v2H7v1h2v2h1v-2h2V9h-2z"></path></svg>
+                    <svg viewBox="0 0 24 24" id="pdfExpandIcon"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zm.5-7H9v2H7v1h2v2h1v-2h2V9h-2z"/></svg>
                 </button>
                 <button class="pdf-action-btn" onclick="downloadCurrentPdf()" title="Ladda ner">
-                    <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg>
+                    <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
                 </button>
                 <a class="pdf-action-btn" id="pdfExternalLink" href="#" target="_blank" title="Öppna i ny flik">
-                    <svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"></path></svg>
+                    <svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
                 </a>
             </div>
             <button class="pdf-close-btn" onclick="closePdfOverlay()">✕</button>
@@ -3073,7 +3075,5 @@
             }
         });
     </script>
-
-
-
-</body></html>
+</body>
+</html>
