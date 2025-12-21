@@ -1,4 +1,4 @@
-const CACHE_NAME = 'banedanmark-v1';
+const CACHE_NAME = 'dkapp-v2';
 const STATIC_ASSETS = [
     './',
     './index.html',
@@ -26,17 +26,50 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = event.request.url;
 
-    // Cache PDF files when fetched
+    // Skip non-GET requests
+    if (event.request.method !== 'GET') return;
+
+    // Handle PDF files - cache first, then network
     if (url.endsWith('.pdf') || url.includes('/La-') || url.includes('poecdn.net')) {
         event.respondWith(
             caches.open(CACHE_NAME).then((cache) =>
                 cache.match(event.request).then((cached) => {
-                    if (cached) return cached;
+                    if (cached) {
+                        // Return cached version immediately
+                        // Also try to update cache in background
+                        fetch(event.request).then((response) => {
+                            if (response.ok) {
+                                cache.put(event.request, response.clone());
+                            }
+                        }).catch(() => {});
+                        return cached;
+                    }
+                    // No cache, try network
                     return fetch(event.request).then((response) => {
-                        if (response.ok) cache.put(event.request, response.clone());
+                        if (response.ok) {
+                            cache.put(event.request, response.clone());
+                        }
                         return response;
-                    }).catch(() => cached);
+                    }).catch(() => {
+                        // Return empty response if offline and not cached
+                        return new Response('Offline - PDF not cached', { status: 503 });
+                    });
                 })
+            )
+        );
+        return;
+    }
+
+    // Handle JSON files (like index.json)
+    if (url.endsWith('.json')) {
+        event.respondWith(
+            caches.open(CACHE_NAME).then((cache) =>
+                fetch(event.request).then((response) => {
+                    if (response.ok) {
+                        cache.put(event.request, response.clone());
+                    }
+                    return response;
+                }).catch(() => cache.match(event.request))
             )
         );
         return;
