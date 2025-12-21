@@ -1657,22 +1657,43 @@
         let laReminderInterval = null; // Interval for checking time
         let countdownInterval = null; // Interval for countdown timer
 
+        async function fetchWithTimeout(url, timeout = 3000) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            try {
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                return response;
+            } catch (e) {
+                clearTimeout(timeoutId);
+                throw e;
+            }
+        }
+
         async function fetchAvailableFiles() {
             const indexUrl = GITHUB_PAGES_URL + 'index.json';
-            const isOffline = !navigator.onLine;
 
-            // If offline, go straight to cache
-            if (isOffline) {
-                console.log('Offline-läge: laddar från cache');
-                return await loadFromCache(indexUrl);
+            // ALWAYS load from cache/IDB first for instant display
+            await loadFromCache(indexUrl);
+
+            // If we have cached data, mark as success for offline
+            const hasCachedData = availableFiles.length > 0;
+            if (hasCachedData) {
+                console.log('Har cachad data:', availableFiles.length, 'filer');
             }
 
-            // Online: Try network first
+            // If offline, don't try network at all
+            if (!navigator.onLine) {
+                console.log('Offline-läge, använder endast cache');
+                return hasCachedData;
+            }
+
+            // Online: Try network with SHORT timeout (3 sec)
             try {
-                const response = await fetch(indexUrl + '?t=' + Date.now());
+                const response = await fetchWithTimeout(indexUrl + '?t=' + Date.now(), 3000);
                 if (response.ok) {
                     availableFiles = await response.json();
-                    // Cache the index.json for offline use (without query param)
+                    // Cache for offline
                     if ('caches' in window) {
                         const cache = await caches.open('dkapp-v2');
                         const cacheResponse = new Response(JSON.stringify(availableFiles), {
@@ -1680,30 +1701,58 @@
                         });
                         await cache.put(indexUrl, cacheResponse);
                     }
+                    // Also save to IndexedDB
+                    try {
+                        await saveToIDB('meta', { key: 'availableFiles', data: availableFiles });
+                    } catch (e) {}
                     return true;
                 }
             } catch (e) {
-                console.log('Nätverksfel, försöker cache:', e.message);
+                console.log('Nätverksfel (timeout 3s):', e.message);
             }
 
-            // Network failed, try cache
-            return await loadFromCache(indexUrl);
+            return hasCachedData;
         }
 
         async function loadFromCache(indexUrl) {
+            // Try Cache API first
             if ('caches' in window) {
                 try {
                     const cache = await caches.open('dkapp-v2');
                     const cachedResponse = await cache.match(indexUrl);
                     if (cachedResponse) {
                         availableFiles = await cachedResponse.json();
-                        console.log('Laddat index.json från cache:', availableFiles.length, 'filer');
+                        console.log('Laddat index.json från Cache API:', availableFiles.length, 'filer');
                         return true;
                     }
                 } catch (e) {
-                    console.log('Cache-fel:', e.message);
+                    console.log('Cache API-fel:', e.message);
                 }
             }
+
+            // Try IndexedDB as backup
+            try {
+                await initDB();
+                const meta = await getFromIDB('meta', 'availableFiles');
+                if (meta && meta.data && meta.data.length > 0) {
+                    availableFiles = meta.data;
+                    console.log('Laddat index.json från IndexedDB:', availableFiles.length, 'filer');
+                    return true;
+                }
+            } catch (e) {
+                console.log('IndexedDB-fel:', e.message);
+            }
+
+            // Check for any cached PDF files in IDB
+            try {
+                const files = await getAllFromIDB('files');
+                if (files && files.length > 0) {
+                    availableFiles = files.map(f => f.name);
+                    console.log('Hittade PDF-filer i IndexedDB:', files.length);
+                    return true;
+                }
+            } catch (e) {}
+
             availableFiles = [];
             return false;
         }
