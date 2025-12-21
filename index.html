@@ -1592,7 +1592,65 @@
         let currentPdf = null;
         const downloadedFiles = new Set();
         const cachedFiles = new Set();
-        let activeTrainNumber = null; // Track currently viewed train number
+        let activeTrainNumber = null;
+
+        // IndexedDB for reliable offline storage
+        const DB_NAME = 'dkapp-offline';
+        const DB_VERSION = 1;
+        let db = null;
+
+        async function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    resolve(db);
+                };
+                request.onupgradeneeded = (event) => {
+                    const database = event.target.result;
+                    if (!database.objectStoreNames.contains('files')) {
+                        database.createObjectStore('files', { keyPath: 'name' });
+                    }
+                    if (!database.objectStoreNames.contains('meta')) {
+                        database.createObjectStore('meta', { keyPath: 'key' });
+                    }
+                };
+            });
+        }
+
+        async function saveToIDB(storeName, data) {
+            if (!db) await initDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                store.put(data);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        async function getFromIDB(storeName, key) {
+            if (!db) await initDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const request = store.get(key);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getAllFromIDB(storeName) {
+            if (!db) await initDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const request = store.getAll();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        } // Track currently viewed train number
         let activeKbhDeparture = null; // Track departure time from København H
         let activeOsterportDeparture = null; // Track departure time from Østerport
         let laReminderShown = false; // Track if reminder has been shown
@@ -1601,16 +1659,26 @@
 
         async function fetchAvailableFiles() {
             const indexUrl = GITHUB_PAGES_URL + 'index.json';
+            const isOffline = !navigator.onLine;
 
-            // Try network first
+            // If offline, go straight to cache
+            if (isOffline) {
+                console.log('Offline-läge: laddar från cache');
+                return await loadFromCache(indexUrl);
+            }
+
+            // Online: Try network first
             try {
                 const response = await fetch(indexUrl + '?t=' + Date.now());
                 if (response.ok) {
                     availableFiles = await response.json();
-                    // Cache the index.json for offline use
+                    // Cache the index.json for offline use (without query param)
                     if ('caches' in window) {
                         const cache = await caches.open('dkapp-v2');
-                        cache.put(indexUrl, response.clone());
+                        const cacheResponse = new Response(JSON.stringify(availableFiles), {
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        await cache.put(indexUrl, cacheResponse);
                     }
                     return true;
                 }
@@ -1619,49 +1687,69 @@
             }
 
             // Network failed, try cache
+            return await loadFromCache(indexUrl);
+        }
+
+        async function loadFromCache(indexUrl) {
             if ('caches' in window) {
                 try {
                     const cache = await caches.open('dkapp-v2');
                     const cachedResponse = await cache.match(indexUrl);
                     if (cachedResponse) {
                         availableFiles = await cachedResponse.json();
-                        console.log('Laddat index.json från cache');
+                        console.log('Laddat index.json från cache:', availableFiles.length, 'filer');
                         return true;
                     }
                 } catch (e) {
                     console.log('Cache-fel:', e.message);
                 }
             }
-
             availableFiles = [];
             return false;
         }
 
         async function checkCachedFiles() {
-            if (!('caches' in window)) return;
-            try {
-                const cache = await caches.open('dkapp-v2');
-                const keys = await cache.keys();
-                keys.forEach(req => {
-                    const url = req.url;
-                    // Check against availableFiles
-                    availableFiles.forEach(fileName => {
-                        if (url.includes(fileName)) {
-                            cachedFiles.add(fileName);
+            // Check Cache API
+            if ('caches' in window) {
+                try {
+                    const cache = await caches.open('dkapp-v2');
+                    const keys = await cache.keys();
+                    keys.forEach(req => {
+                        const url = req.url;
+                        // Check against availableFiles
+                        availableFiles.forEach(fileName => {
+                            if (url.includes(fileName)) {
+                                cachedFiles.add(fileName);
+                            }
+                        });
+                        // Also extract filename from URL and add to cachedFiles
+                        const match = url.match(/La-\d+-\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}(-R\d+)?\.pdf/);
+                        if (match) {
+                            cachedFiles.add(match[0]);
+                            // Also add to availableFiles if not there
+                            if (!availableFiles.includes(match[0])) {
+                                availableFiles.push(match[0]);
+                            }
                         }
                     });
-                    // Also extract filename from URL and add to cachedFiles
-                    const match = url.match(/La-\d+-\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}(-R\d+)?\.pdf/);
-                    if (match) {
-                        cachedFiles.add(match[0]);
-                        // Also add to availableFiles if not there
-                        if (!availableFiles.includes(match[0])) {
-                            availableFiles.push(match[0]);
-                        }
+                } catch (e) {
+                    console.log('Cache API error:', e);
+                }
+            }
+
+            // Also check IndexedDB
+            try {
+                await initDB();
+                const files = await getAllFromIDB('files');
+                files.forEach(file => {
+                    cachedFiles.add(file.name);
+                    if (!availableFiles.includes(file.name)) {
+                        availableFiles.push(file.name);
                     }
                 });
+                console.log('IndexedDB files:', files.length);
             } catch (e) {
-                console.log('Cache check error:', e);
+                console.log('IndexedDB check error:', e);
             }
         }
 
@@ -1671,9 +1759,30 @@
 
             try {
                 const response = await fetch(url);
-                if (response.ok && 'caches' in window) {
-                    const cache = await caches.open('dkapp-v2');
-                    await cache.put(url, response.clone());
+                if (response.ok) {
+                    // Save to Cache API
+                    if ('caches' in window) {
+                        const cache = await caches.open('dkapp-v2');
+                        await cache.put(url, response.clone());
+                    }
+
+                    // Also save PDF data to IndexedDB (more reliable on Android)
+                    try {
+                        const blob = await response.clone().blob();
+                        const reader = new FileReader();
+                        reader.onload = async () => {
+                            await saveToIDB('files', {
+                                name: fileName,
+                                url: url,
+                                data: reader.result,
+                                timestamp: Date.now()
+                            });
+                        };
+                        reader.readAsDataURL(blob);
+                    } catch (e) {
+                        console.log('IDB save error:', e);
+                    }
+
                     cachedFiles.add(fileName);
                     // Update UI
                     const today = getDateSwedish(0);
@@ -1903,7 +2012,22 @@
             overlay.classList.add('active');
 
             try {
-                currentPdf = await pdfjsLib.getDocument(url).promise;
+                let pdfData = url;
+
+                // If offline, try to get PDF from IndexedDB first
+                if (!navigator.onLine) {
+                    try {
+                        const cachedFile = await getFromIDB('files', fileName);
+                        if (cachedFile && cachedFile.data) {
+                            console.log('Laddar PDF från IndexedDB:', fileName);
+                            pdfData = cachedFile.data;
+                        }
+                    } catch (e) {
+                        console.log('IDB hämtning misslyckades:', e);
+                    }
+                }
+
+                currentPdf = await pdfjsLib.getDocument(pdfData).promise;
                 const totalPages = currentPdf.numPages;
                 content.innerHTML = '';
 
@@ -2755,6 +2879,18 @@
             refreshLaDisplay();
             loadTrainPDF();
             loadSavedTrains();
+
+            // Listen for online/offline changes
+            window.addEventListener('online', () => {
+                console.log('Tillbaka online');
+                refreshLaDisplay();
+            });
+            window.addEventListener('offline', () => {
+                console.log('Gick offline');
+                const syncStatus = document.getElementById('syncStatus');
+                syncStatus.textContent = '📴 Offline';
+                syncStatus.classList.remove('synced');
+            });
         }
 
         document.addEventListener('keydown', (e) => {
