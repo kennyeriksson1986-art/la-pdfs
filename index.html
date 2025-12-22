@@ -1500,7 +1500,7 @@
             <input type="password" id="passwordInput" class="password-input" placeholder="Lösenord" autofocus>
             <button class="password-btn" onclick="checkPassword()">Öppna</button>
             <div class="password-error hidden" id="passwordError">Fel lösenord</div>
-            <span class="login-version">v0.02</span>
+            <span class="login-version">v0.03</span>
         </div>
     </div>
 
@@ -1515,7 +1515,7 @@
             <button class="refresh-btn" onclick="refreshLaDisplay()" title="Uppdatera">
                 <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
             </button>
-            <span class="version-label">v0.02</span>
+            <span class="version-label">v0.03</span>
         </div>
     </div>
 
@@ -1564,15 +1564,6 @@
             </div>
 
             <div class="results-card hidden" id="resultsCard">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 0.7rem; font-weight: 600;">📋 Køreplan</span>
-                        <span id="variantCount" style="font-size:0.6rem;color:var(--text-muted);"></span>
-                    </div>
-                    <div class="train-badge" id="trainBadge">
-                        <span id="trainNumber"></span>
-                    </div>
-                </div>
                 <div id="variantSelector"></div>
             </div>
 
@@ -2361,7 +2352,6 @@
         const searchInput = document.getElementById('searchInput');
         const searchBtn = document.getElementById('searchBtn');
         const resultsCard = document.getElementById('resultsCard');
-        const trainNumber = document.getElementById('trainNumber');
         const variantSelector = document.getElementById('variantSelector');
         const savedTrainsContainer = document.getElementById('savedTrainsContainer');
         const savedTrainsList = document.getElementById('savedTrainsList');
@@ -2532,7 +2522,6 @@
             activeVariantIndex = -1;
 
             resultsCard.classList.remove('hidden');
-            trainNumber.textContent = query;
             currentTrainQuery = query;
 
             variantSelector.innerHTML = '<div class="initial-loading"><div class="spinner"></div><p>Søger...</p></div>';
@@ -2770,14 +2759,6 @@
         }
 
         function showVariantSelector(variants, query) {
-            // Update variant count in header
-            const variantCountEl = document.getElementById('variantCount');
-            if (variants.length > 1) {
-                variantCountEl.textContent = `🔀 ${variants.length} ture - vælg en:`;
-            } else {
-                variantCountEl.textContent = '';
-            }
-
             let html = '<div class="variant-options">';
 
             variants.forEach((v, i) => {
