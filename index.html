@@ -1226,6 +1226,79 @@
             opacity: 0.9;
         }
 
+        /* Info Tracker popup */
+        .info-tracker-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .info-tracker-content {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 300px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        .info-tracker-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .info-tracker-text {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .info-tracker-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .info-tracker-btn {
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .info-tracker-no {
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .info-tracker-no:hover {
+            background: var(--border);
+        }
+
+        .info-tracker-yes {
+            background: var(--success);
+            color: white;
+        }
+
+        .info-tracker-yes:hover {
+            opacity: 0.9;
+        }
 
         /* Saved trains */
         .saved-trains-container {
@@ -1504,7 +1577,7 @@
             <input type="password" id="passwordInput" class="password-input" placeholder="Lösenord" autofocus>
             <button class="password-btn" onclick="checkPassword()">Öppna</button>
             <div class="password-error hidden" id="passwordError">Fel lösenord</div>
-            <span class="login-version">v0.09</span>
+            <span class="login-version">v0.12</span>
         </div>
     </div>
 
@@ -1519,7 +1592,7 @@
             <button class="refresh-btn" onclick="refreshLaDisplay()" title="Uppdatera">
                 <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
             </button>
-            <span class="version-label">v0.09</span>
+            <span class="version-label">v0.12</span>
         </div>
     </div>
 
@@ -1845,14 +1918,20 @@
         // Track currently viewed train number
         let activeKbhDeparture = null; // Track departure time from København H
         let activeOsterportDeparture = null; // Track departure time from Østerport
+        let activePeberholmDeparture = null; // Track departure time from Peberholm
         let laReminderShown = false; // Track if reminder has been shown
+        let infoTrackerShown = false; // Track if Info tracker popup has been shown
         let laReminderInterval = null; // Interval for checking time
         let countdownInterval = null; // Interval for countdown timer
+        let infoTrackerInterval = null; // Interval for Info tracker check
 
-        // Save/restore open view state
+        // Save/restore open view state (expires after 1 hour)
+        const VIEW_STATE_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
         async function saveViewState() {
             const state = {
                 key: 'viewState',
+                timestamp: Date.now(),
                 pdf: currentPdfUrl ? { url: currentPdfUrl, fileName: currentPdfFileName } : null,
                 train: activeTrainNumber ? {
                     trainNum: String(activeTrainNumber),
@@ -1866,6 +1945,13 @@
         async function restoreViewState() {
             const state = await getFromIDB('meta', 'viewState');
             if (!state) return;
+
+            // Check if state has expired (older than 1 hour)
+            if (state.timestamp && (Date.now() - state.timestamp) > VIEW_STATE_EXPIRY_MS) {
+                console.log('View state expired, clearing');
+                await clearViewState();
+                return;
+            }
 
             // Restore PDF overlay
             if (state.pdf && state.pdf.url) {
@@ -1890,7 +1976,7 @@
         }
 
         async function clearViewState() {
-            await saveToIDB('meta', { key: 'viewState', pdf: null, train: null });
+            await saveToIDB('meta', { key: 'viewState', pdf: null, train: null, timestamp: null });
         }
 
         async function fetchWithTimeout(url, timeout = 3000) {
@@ -2275,19 +2361,29 @@
             renderDownloadItems('downloadsListTomorrow', tomorrow, 'tomorrow', rettelserTomorrow);
 
             // Update status based on what we have
+            // Only count main LA files (not rettelser) for today and tomorrow
             const isOffline = !navigator.onLine;
-            if (cachedFiles.size > 0) {
-                syncStatus.textContent = isOffline ? `📴 ${cachedFiles.size} offline` : `✓ ${cachedFiles.size} sparade`;
+            const mainLaCount = Array.from(cachedFiles).filter(f => {
+                // Only count if it's a main LA file (no -R in filename) and is for today or tomorrow
+                if (f.includes('-R')) return false;
+                const match = f.match(/La-\d+-(\d{4}-\d{2}-\d{2})/);
+                if (!match) return false;
+                const fileDate = match[1];
+                return fileDate === today || fileDate === tomorrow;
+            }).length;
+
+            if (mainLaCount > 0) {
+                syncStatus.textContent = isOffline ? `📴 ${mainLaCount} LA offline` : `✓ ${mainLaCount} LA sparade`;
                 syncStatus.classList.add('synced');
-            } else if (availableFiles.length > 0) {
-                syncStatus.textContent = isOffline ? `📴 ${availableFiles.length} filer` : `✓ ${availableFiles.length} filer`;
+            } else if (cachedFiles.size > 0) {
+                syncStatus.textContent = isOffline ? `📴 Offline` : `✓ Synkad`;
                 syncStatus.classList.add('synced');
             } else if (isOffline) {
                 syncStatus.textContent = '📴 Offline';
             } else {
                 syncStatus.textContent = 'Väntar på data...';
             }
-            console.log('Status:', { isOffline, cachedFiles: cachedFiles.size, availableFiles: availableFiles.length });
+            console.log('Status:', { isOffline, mainLaCount, cachedFiles: cachedFiles.size });
         }
 
         async function downloadPdf(url, fileName, dayKey, routeId, event) {
@@ -3001,6 +3097,8 @@
 
             // Find departure time from Østerport (for even train numbers)
             activeOsterportDeparture = null;
+            activePeberholmDeparture = null;
+            infoTrackerShown = false;
             if (activeTrainNumber && activeTrainNumber % 2 === 0) {
                 const osterportStop = variant.stops.find(s =>
                     s.station.toLowerCase().includes('østerport') ||
@@ -3010,10 +3108,21 @@
                 if (osterportStop && osterportStop.departure && osterportStop.departure !== '-') {
                     activeOsterportDeparture = osterportStop.departure;
                 }
+
+                // Find departure time from Peberholm
+                const peberholmStop = variant.stops.find(s =>
+                    s.station.toLowerCase().includes('peberholm')
+                );
+                if (peberholmStop && peberholmStop.departure && peberholmStop.departure !== '-') {
+                    activePeberholmDeparture = peberholmStop.departure;
+                }
             }
 
             // Start checking for LA reminder
             startLaReminderCheck();
+
+            // Start checking for Info tracker popup (1 min before Peberholm)
+            startInfoTrackerCheck();
 
             // Start countdown for even train numbers
             startCountdown();
@@ -3062,8 +3171,10 @@
             activeTrainNumber = null; // Clear active train number
             activeKbhDeparture = null;
             activeOsterportDeparture = null;
+            activePeberholmDeparture = null;
             stopLaReminderCheck();
             stopCountdown();
+            stopInfoTrackerCheck();
             // Remove active state from variants
             variantSelector.querySelectorAll('.variant-option').forEach(o => o.classList.remove('active'));
             // Update saved view state
@@ -3160,6 +3271,77 @@
             }
             laReminderShown = false;
             showLaReminder();
+        }
+
+        // ========================================
+        // INFO TRACKER POPUP (1 min before Peberholm)
+        // ========================================
+
+        function startInfoTrackerCheck() {
+            stopInfoTrackerCheck();
+            if (!activePeberholmDeparture || !activeTrainNumber || activeTrainNumber % 2 !== 0) return;
+
+            const [depHour, depMin] = activePeberholmDeparture.split(':').map(Number);
+
+            infoTrackerInterval = setInterval(() => {
+                if (infoTrackerShown) return;
+
+                const now = new Date();
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                const peberholmMinutes = depHour * 60 + depMin;
+                const diff = peberholmMinutes - currentMinutes;
+
+                // Show popup 1 minute before Peberholm departure
+                if (diff === 1 || (diff === 0 && now.getSeconds() < 30)) {
+                    infoTrackerShown = true;
+                    showInfoTrackerPopup();
+                }
+            }, 10000); // Check every 10 seconds
+        }
+
+        function stopInfoTrackerCheck() {
+            if (infoTrackerInterval) {
+                clearInterval(infoTrackerInterval);
+                infoTrackerInterval = null;
+            }
+        }
+
+        function showInfoTrackerPopup() {
+            // Remove any existing popup
+            const existing = document.querySelector('.info-tracker-modal');
+            if (existing) existing.remove();
+
+            const modal = document.createElement('div');
+            modal.className = 'info-tracker-modal';
+            modal.innerHTML = `
+                <div class="info-tracker-content">
+                    <div class="info-tracker-title">📍 Peberholm om 1 minut</div>
+                    <div class="info-tracker-text">Vill du öppna Info tracker?</div>
+                    <div class="info-tracker-buttons">
+                        <button class="info-tracker-btn info-tracker-no" onclick="closeInfoTrackerPopup(this)">Nej</button>
+                        <button class="info-tracker-btn info-tracker-yes" onclick="openInfoTracker(this)">Ja</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Auto-close after 30 seconds
+            setTimeout(() => {
+                if (document.body.contains(modal)) {
+                    modal.remove();
+                }
+            }, 30000);
+        }
+
+        function closeInfoTrackerPopup(btn) {
+            const modal = btn.closest('.info-tracker-modal');
+            if (modal) modal.remove();
+        }
+
+        function openInfoTracker(btn) {
+            closeInfoTrackerPopup(btn);
+            // Open Info tracker app using Android intent
+            window.location.href = 'intent://#Intent;package=se.railit.app.infotracker.mpk;end';
         }
 
         // ========================================
