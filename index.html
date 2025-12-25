@@ -3340,8 +3340,8 @@
 
         function openInfoTracker(btn) {
             closeInfoTrackerPopup(btn);
-            // Open Info tracker app using Android intent
-            window.location.href = 'intent://#Intent;package=se.railit.app.infotracker.mpk;end';
+            // Open Info tracker app directly using Android launcher intent
+            window.location.href = 'intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=se.railit.app.infotracker.mpk;end';
         }
 
         // ========================================
